@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../widgets/mode_card.dart';
+import 'package:saveme_project/ui/widgets/button.dart';
+import 'package:saveme_project/ui/widgets/info_card.dart';
 import 'tracking_mode.dart';
 
 class WelcomeScreen extends StatelessWidget {
-  final Function(String) onModeSelect;
-  const WelcomeScreen({super.key, required this.onModeSelect});
+  const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,48 +12,55 @@ class WelcomeScreen extends StatelessWidget {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [ Colors.green, Colors.lightGreen],
+            colors: [Colors.green, Colors.lightGreen],
           ),
         ),
-
         child: Center(
-
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.savings, size: 80, color: Colors.green[600]),
-                SizedBox(height: 16),
-                const Text(
-                  'Welcome to SaveMe',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.savings, size: 80, color: const Color.fromARGB(255, 255, 255, 255)),
+              SizedBox(height: 20),
+              const Text(
+                'Welcome to SaveMe',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              
+              SizedBox(height: 50),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: InfoCard(
+                  icon: Icons.auto_awesome,
+                  title: 'Save smarter, on day at a time',
+                  description: 'Create a daily saving plan instantly using your income, fixed Expenses, and estimated spending.',
+                  backgroundColor: Colors.green[50],
+                  iconColor: Colors.blueAccent,
                   ),
-                ),
+              ),
 
-                SizedBox(height: 16),
-                ModeCard(
-                  title: 'Smart Tracking',
-                  icon: Icons.bar_chart,
-                  description: 'Quick expense tracking',
-                  gradient: [Colors.teal[500]!, Colors.green[600]!],
-                  onTap: () => onModeSelect('smart_tracking'),
+              SizedBox(height: 50),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: CustomButton(
+                  text: 'Smart Tracking',
+                  backgroundColor: Colors.blue,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TrackingMode()),
+                    );
+                  },
                 ),
-                
-                const SizedBox(height: 10),
-                
-                ModeCard(
-                  title: 'Quick Planning',
-                  icon: Icons.calendar_today,
-                  description: 'Plan your budget easily',
-                  gradient: [Colors.blue[500]!, Colors.indigo[600]!],
-                  onTap: () => onModeSelect('quick_planning'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }

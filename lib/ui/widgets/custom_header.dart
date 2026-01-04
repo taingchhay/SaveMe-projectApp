@@ -20,11 +20,15 @@ class CustomHeader extends StatelessWidget {
         gradient: LinearGradient(
           colors: [Colors.green[500]!, Colors.green[600]!],
         ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40), // Increased bottom padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

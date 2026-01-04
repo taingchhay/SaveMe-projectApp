@@ -44,7 +44,6 @@ class InfoCard extends StatelessWidget {
               size: 24,
             ),
           ),
-          
           const SizedBox(width: 16),
           
           // Text Content

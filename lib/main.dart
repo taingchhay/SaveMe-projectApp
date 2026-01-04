@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:saveme_project/ui/screens/tracking_mode.dart';
-import 'ui/screens/welcome_screen.dart';
-
+import 'package:saveme_project/ui/screens/welcome_screen.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -14,8 +12,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SaveMe',
-      home: TrackingMode(),
-
+      home: WelcomeScreen(),
     );
   }
 }
