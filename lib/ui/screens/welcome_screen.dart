@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saveme_project/ui/widgets/button.dart';
-import 'package:saveme_project/ui/widgets/info_card.dart';
+import 'package:saveme_project/ui/screens/saving_plan_list.dart';
 import 'tracking_mode.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -19,7 +19,8 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.savings, size: 80, color: const Color.fromARGB(255, 255, 255, 255)),
+              Icon(Icons.savings,
+                  size: 80, color: const Color.fromARGB(255, 255, 255, 255)),
               SizedBox(height: 20),
               const Text(
                 'Welcome to SaveMe',
@@ -29,19 +30,6 @@ class WelcomeScreen extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              
-              SizedBox(height: 50),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: InfoCard(
-                  icon: Icons.auto_awesome,
-                  title: 'Save smarter, on day at a time',
-                  description: 'Create a daily saving plan instantly using your income, fixed Expenses, and estimated spending.',
-                  backgroundColor: Colors.green[50],
-                  iconColor: Colors.blueAccent,
-                  ),
-              ),
-
               SizedBox(height: 50),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -51,8 +39,28 @@ class WelcomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
+                      MaterialPageRoute(builder: (context) => TrackingMode()),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: CustomButton(
+                  text: 'My Plans',
+                  backgroundColor: Colors.blue,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
                       MaterialPageRoute(
-                        builder: (context) => TrackingMode()),
+                        builder: (context) => SavingPlanList(
+                          monthlyIncome:
+                              1000, // Default value, will be updated from user data
+                          totalFixedExpenses:
+                              500, // Default value, will be updated from user data
+                        ),
+                      ),
                     );
                   },
                 ),

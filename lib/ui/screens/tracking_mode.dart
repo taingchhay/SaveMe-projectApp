@@ -20,6 +20,7 @@ class _TrackingModeState extends State<TrackingMode> {
   final _amountController = TextEditingController();
   final _estimateController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  DateTime _targetDate = DateTime.now().add(Duration(days: 60));
 
   @override
   void dispose() {
@@ -208,11 +209,6 @@ class _TrackingModeState extends State<TrackingMode> {
                                 ),
                               ),
                             ),
-                            // const SizedBox(width: 8),
-                            // IconButton(
-                            //   icon: const Icon(Icons.close, color: Colors.red),
-                            //   onPressed: () => _removeFixedExpense(index),
-                            // ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -223,9 +219,9 @@ class _TrackingModeState extends State<TrackingMode> {
                           const SizedBox(height: 10),
                           TextFormField(
                             controller: _estimateController,
-                            keyboardType: TextInputType.number, // ADD THIS
+                            keyboardType: TextInputType.number, 
                             validator: (value) {
-                              // This field is optional, so only validate if user entered something
+                              //optional, so only validate if user entered something
                               if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
                                 return 'Please enter a valid number';
                               }
@@ -243,29 +239,41 @@ class _TrackingModeState extends State<TrackingMode> {
                             ),
                           ),
                           SizedBox(height: 20),
+                          const SizedBox(height: 20),
+
                           CustomButton(
                             text: 'Start Now',
                             onPressed: () {
                               // Validate all fields
                               if (_formKey.currentState!.validate()) {
-                                // All fields are valid, navigate to next screen
+                                // Calculate total fixed expenses
+                                double totalFixed = 0;
+                                if (_amountController.text.isNotEmpty) {
+                                  totalFixed = double.tryParse(_amountController.text) ?? 0;
+                                }
+                                
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => SavingPlan(),
+                                    builder: (context) => SavingPlan(
+                                      goalName: _goalNameController.text,
+                                      goalPrice: double.parse(_goalPriceController.text),
+                                      monthlyIncome: double.parse(_monthlyIncomeController.text),
+                                      totalFixedExpenses: totalFixed,
+                                      targetDate: _targetDate,
+                                    ),
                                   ),
                                 );
                               } else {
-                                // Show error message
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Please fill all required fields correctly'),
                                     backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),
