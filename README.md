@@ -149,7 +149,7 @@ This project is part of a university course project.
 
 For a detailed overview of the SaveMe project, including features, architecture, and development process, please view our presentation:
 
-**[SaveMe Project Presentation - View on Canva](https://www.canva.com/design/DAG9kM_hO80/0rE-4FVVVfAZbqi71PbdXA/edit?utm_content=DAG9kM_hO80&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)**
+**[SaveMe Project Presentation](https://www.canva.com/design/DAG9kM_hO80/0rE-4FVVVfAZbqi71PbdXA/edit?utm_content=DAG9kM_hO80&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)**
 
 ---
 
