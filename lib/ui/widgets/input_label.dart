@@ -5,10 +5,10 @@ class InputLabel extends StatelessWidget {
   final String text;
 
   const InputLabel({
-    Key? key,
+    super.key,
     required this.icon,
     required this.text,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

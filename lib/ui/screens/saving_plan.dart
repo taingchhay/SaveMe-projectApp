@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:saveme_project/data/daily_record_data.dart';
+import 'package:saveme_project/domain/model/daily_record.dart';
 import 'package:saveme_project/ui/widgets/saving_info_card.dart';
 import 'package:saveme_project/ui/widgets/mark_as_saved_dialog.dart';
+import 'package:saveme_project/ui/widgets/daily_entry_detail_dialog.dart';
 import 'package:saveme_project/utils/colors.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:saveme_project/ui/widgets/custom_header.dart';
@@ -10,6 +13,7 @@ class SavingPlan extends StatefulWidget {
   final double goalPrice;
   final double monthlyIncome;
   final double totalFixedExpenses;
+  final DateTime startDate;
   final DateTime targetDate;
 
   const SavingPlan({
@@ -18,6 +22,7 @@ class SavingPlan extends StatefulWidget {
     required this.goalPrice,
     required this.monthlyIncome,
     required this.totalFixedExpenses,
+    required this.startDate,
     required this.targetDate,
   });
 
@@ -30,30 +35,102 @@ class _SavingPlanState extends State<SavingPlan> {
   DateTime? _selectedDay;
   late int targetDays;
 
-  Map<DateTime, double> savedAmounts = {}; // Track saved amounts for each day
-  late double suggestedDailySaving; // Daily saving amount
-  double get totalSaved => savedAmounts.values
-      .fold(0.0, (sum, amount) => sum + amount); // Calculate total
+  final DailyRecordData _dailyRecordData = DailyRecordData();
+
+  Map<DateTime, double> savedAmounts = {};
+  Map<DateTime, bool> missedDays = {};
+  late double suggestedDailySaving;
+  double get totalSaved =>
+      savedAmounts.values.fold(0.0, (sum, amount) => sum + amount);
+
+  int get missedCount {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(
+        widget.startDate.year, widget.startDate.month, widget.startDate.day);
+    final end = DateTime(
+        widget.targetDate.year, widget.targetDate.month, widget.targetDate.day);
+    final endDate = today.isBefore(end) ? today : end;
+
+    int count = 0;
+    DateTime current = start;
+
+    while (current.isBefore(endDate)) {
+      if (!savedAmounts.containsKey(current)) {
+        count++;
+      }
+      current = current.add(const Duration(days: 1));
+    }
+
+    return count;
+  }
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
 
-    // Calculate target days from target date
-    targetDays = widget.targetDate.difference(DateTime.now()).inDays;
-    if (targetDays <= 0) targetDays = 30; // Minimum 30 days
+    targetDays = widget.targetDate.difference(widget.startDate).inDays + 1;
+    if (targetDays <= 0) targetDays = 30;
 
     _calculateDailySaving();
+    _loadExistingRecords();
+  }
+
+  Future<void> _loadExistingRecords() async {
+    final records = await _dailyRecordData.loadAll();
+    final map = <DateTime, double>{};
+    final missed = <DateTime, bool>{};
+    final now = DateTime.now();
+    final todayOnly = DateTime(now.year, now.month, now.day);
+
+    for (final r in records) {
+      final dateOnly = DateTime(r.date.year, r.date.month, r.date.day);
+      if (r.isSaved) {
+        map[dateOnly] = r.savedAmountThisDay;
+      }
+      if (r.isMissed) {
+        missed[dateOnly] = true;
+      }
+    }
+
+    final start = DateTime(
+        widget.startDate.year, widget.startDate.month, widget.startDate.day);
+    final end = DateTime(
+        widget.targetDate.year, widget.targetDate.month, widget.targetDate.day);
+    final endDate = todayOnly.isBefore(end) ? todayOnly : end;
+
+    DateTime current = start;
+    while (current.isBefore(endDate)) {
+      if (!map.containsKey(current)) {
+        missed[current] = true;
+        await _dailyRecordData.upsertByDate(
+          DailyRecord(
+            date: current,
+            spendingItems: [],
+            totalSpending: 0.0,
+            suggestedSaving: suggestedDailySaving,
+            savedAmountThisDay: 0.0,
+            isSaved: false,
+            isMissed: true,
+          ),
+        );
+      }
+      current = current.add(const Duration(days: 1));
+    }
+
+    if (!mounted) return;
+    setState(() {
+      savedAmounts = map;
+      missedDays = missed;
+    });
   }
 
   void _calculateDailySaving() {
-    // Use data from widget (from previous screen)
     double dailyAvailable =
         (widget.monthlyIncome - widget.totalFixedExpenses) / 30;
     double targetDailySaving = widget.goalPrice / targetDays;
 
-    // assign to class variable instead
     suggestedDailySaving = targetDailySaving < dailyAvailable
         ? targetDailySaving
         : dailyAvailable * 0.3;
@@ -62,18 +139,23 @@ class _SavingPlanState extends State<SavingPlan> {
   void _showMarkAsSavedDialog(DateTime day) async {
     final dateOnly = DateTime(day.year, day.month, day.day);
 
-    // If the day is already saved, remove it on tap.
-    // A better UX might be to show an edit/delete dialog.
     if (savedAmounts.containsKey(dateOnly)) {
-      setState(() {
-        savedAmounts.remove(dateOnly);
-        _selectedDay = null; // Deselect the day
-      });
+      final existing = await _dailyRecordData.loadByDate(dateOnly);
+      if (!mounted || existing == null) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => DailyEntryDetailDialog(
+          record: existing,
+          onEdit: () => _editExistingRecord(existing),
+        ),
+      );
       return;
     }
 
-    // Show the dialog to get the saved amount
-    final savedAmount = await showDialog<double>(
+    final result = await showDialog<MarkAsSavedResult>(
       context: context,
       builder: (context) => MarkAsSavedDialog(
         day: dateOnly,
@@ -81,13 +163,88 @@ class _SavingPlanState extends State<SavingPlan> {
       ),
     );
 
-    // If the user confirmed, update the state with the new amount
-    if (savedAmount != null) {
+    if (result != null) {
+      final spendingItems = <SpendingItem>[];
+      for (final e in result.expenses) {
+        spendingItems.add(
+          SpendingItem(
+            spendingItemName:
+                e.description.isEmpty ? 'Spending' : e.description,
+            category: 'Other',
+            spendingItemAmount: e.amount,
+          ),
+        );
+      }
+
+      await _dailyRecordData.upsertByDate(
+        DailyRecord(
+          date: dateOnly,
+          spendingItems: spendingItems,
+          totalSpending: result.totalSpent,
+          suggestedSaving: suggestedDailySaving,
+          savedAmountThisDay: result.amountSaved,
+          isSaved: true,
+          isMissed: false,
+        ),
+      );
+
+      if (!mounted) return;
       setState(() {
         _selectedDay = day;
-        savedAmounts[dateOnly] = savedAmount;
+        savedAmounts[dateOnly] = result.amountSaved;
+        missedDays.remove(dateOnly);
       });
     }
+  }
+
+  Future<void> _editExistingRecord(DailyRecord existing) async {
+    final initialExpenses = existing.spendingItems
+        .map(
+          (s) => ExpenseEntry(
+            description: s.spendingItemName,
+            amount: s.spendingItemAmount,
+          ),
+        )
+        .toList();
+
+    final result = await showDialog<MarkAsSavedResult>(
+      context: context,
+      builder: (context) => MarkAsSavedDialog(
+        day: DateTime(
+            existing.date.year, existing.date.month, existing.date.day),
+        suggestedSaving: existing.suggestedSaving,
+        initialExpenses: initialExpenses,
+        initialAmountSaved: existing.savedAmountThisDay,
+      ),
+    );
+
+    if (result == null) return;
+
+    final updatedSpendingItems = <SpendingItem>[];
+    for (final e in result.expenses) {
+      updatedSpendingItems.add(
+        SpendingItem(
+          spendingItemName: e.description.isEmpty ? 'Spending' : e.description,
+          category: 'Other',
+          spendingItemAmount: e.amount,
+        ),
+      );
+    }
+
+    final updated = existing.copyWith(
+      spendingItems: updatedSpendingItems,
+      totalSpending: result.totalSpent,
+      savedAmountThisDay: result.amountSaved,
+    );
+
+    await _dailyRecordData.upsertByDate(updated);
+    if (!mounted) return;
+    setState(() {
+      final dateOnly =
+          DateTime(updated.date.year, updated.date.month, updated.date.day);
+      savedAmounts[dateOnly] = updated.savedAmountThisDay;
+      _selectedDay = updated.date;
+    });
   }
 
   @override
@@ -120,8 +277,7 @@ class _SavingPlanState extends State<SavingPlan> {
                               AppColors.lightGreen,
                               AppColors.darkGreen
                             ],
-                            shadowColor:
-                                AppColors.primaryGreen.withOpacity(0.3),
+                            shadowColor: AppColors.primaryGreen.withAlpha(77),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -136,18 +292,18 @@ class _SavingPlanState extends State<SavingPlan> {
                               AppColors.lightBlue,
                               AppColors.darkBlue
                             ],
-                            shadowColor: AppColors.primaryBlue.withOpacity(0.3),
+                            shadowColor: AppColors.primaryBlue.withAlpha(77),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.cardBackground,
                         borderRadius: BorderRadius.circular(16),
                       ),
+                      //AI Generated
                       child: TableCalendar(
                         firstDay: DateTime.utc(2020, 1, 1),
                         lastDay: DateTime.utc(2030, 12, 31),
@@ -165,16 +321,44 @@ class _SavingPlanState extends State<SavingPlan> {
                           markerBuilder: (context, date, events) {
                             final dateOnly =
                                 DateTime(date.year, date.month, date.day);
+
                             if (savedAmounts.containsKey(dateOnly)) {
                               return Positioned(
                                 bottom: 1,
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primaryGreen,
-                                    shape: BoxShape.circle,
+                                left: 0,
+                                right: 0,
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.blue,
+                                    size: 16,
                                   ),
-                                  width: 7,
-                                  height: 7,
+                                ),
+                              );
+                            }
+
+                            final now = DateTime.now();
+                            final today =
+                                DateTime(now.year, now.month, now.day);
+                            final start = DateTime(widget.startDate.year,
+                                widget.startDate.month, widget.startDate.day);
+                            final end = DateTime(widget.targetDate.year,
+                                widget.targetDate.month, widget.targetDate.day);
+                            final effectiveEnd =
+                                today.isBefore(end) ? today : end;
+
+                            final isInRange = !dateOnly.isBefore(start) &&
+                                dateOnly.isBefore(effectiveEnd);
+
+                            if (isInRange &&
+                                !savedAmounts.containsKey(dateOnly)) {
+                              return Positioned(
+                                bottom: 1,
+                                child: Icon(
+                                  Icons.cancel,
+                                  color: Colors.red[600],
+                                  size: 16,
                                 ),
                               );
                             }
@@ -197,19 +381,15 @@ class _SavingPlanState extends State<SavingPlan> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Legend
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildLegend(Color(0xFF4CAF50), 'Saved'),
+                        _buildCalendarLegend(Colors.blue, 'Saved'),
                         const SizedBox(width: 20),
-                        _buildLegend(const Color.fromARGB(255, 255, 0, 0)!, 'Missed'),
+                        _buildCalendarLegend(Colors.red[600]!, 'Missed'),
                       ],
                     ),
-
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -221,7 +401,7 @@ class _SavingPlanState extends State<SavingPlan> {
     );
   }
 
-  Widget _buildLegend(Color color, String label) {
+  Widget _buildCalendarLegend(Color color, String label) {
     return Row(
       children: [
         Container(

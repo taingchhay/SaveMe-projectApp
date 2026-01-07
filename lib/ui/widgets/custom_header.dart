@@ -7,11 +7,11 @@ class CustomHeader extends StatelessWidget {
   final VoidCallback? onBackPressed;
 
   const CustomHeader({
-    Key? key,
+    super.key,
     required this.title,
     required this.subtitle,
     this.onBackPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,22 +29,17 @@ class CustomHeader extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-              16, 16, 16, 40), // Increased bottom padding
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back Button
               IconButton(
                 onPressed: onBackPressed ?? () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back, color: AppColors.textWhite),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-
               const SizedBox(height: 16),
-
-              // Title
               Text(
                 title,
                 style: const TextStyle(
@@ -53,10 +48,7 @@ class CustomHeader extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 4),
-
-              // Subtitle
               Text(
                 subtitle,
                 style: const TextStyle(
