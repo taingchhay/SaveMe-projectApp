@@ -1,44 +1,19 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class JsonStorage {
   JsonStorage._();
 
-  //AI Generated
-  static Future<Directory> _projectRootDir() async {
-    var dir = Directory.current;
-    for (var i = 0; i < 12; i++) {
-      final pubspec = File('${dir.path}${Platform.pathSeparator}pubspec.yaml');
-      if (await pubspec.exists()) return dir;
-      final parent = dir.parent;
-      if (parent.path == dir.path) break;
-      dir = parent;
-    }
-    return Directory.current;
-  }
-
-  static Future<Directory> _dataDir() async {
-    final root = await _projectRootDir();
-    final dir = Directory(
-      '${root.path}${Platform.pathSeparator}lib${Platform.pathSeparator}data',
-    );
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-
-  static Future<File> _file(String fileName) async {
-    final dir = await _dataDir();
-    return File('${dir.path}${Platform.pathSeparator}$fileName');
+  static String _getKey(String fileName) {
+    // Remove .json extension if present for cleaner keys
+    return fileName.replaceAll('.json', '');
   }
 
   static Future<Map<String, dynamic>> readObject(String fileName) async {
-    final f = await _file(fileName);
-    if (!await f.exists()) return <String, dynamic>{};
-    final raw = await f.readAsString();
-    if (raw.trim().isEmpty) return <String, dynamic>{};
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_getKey(fileName));
+      if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return <String, dynamic>{};
       return decoded.cast<String, dynamic>();
@@ -48,11 +23,10 @@ class JsonStorage {
   }
 
   static Future<List<dynamic>> readList(String fileName) async {
-    final f = await _file(fileName);
-    if (!await f.exists()) return <dynamic>[];
-    final raw = await f.readAsString();
-    if (raw.trim().isEmpty) return <dynamic>[];
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_getKey(fileName));
+      if (raw == null || raw.trim().isEmpty) return <dynamic>[];
       final decoded = jsonDecode(raw);
       if (decoded is! List) return <dynamic>[];
       return decoded.toList();
@@ -65,12 +39,18 @@ class JsonStorage {
     String fileName,
     Map<String, dynamic> json,
   ) async {
-    final f = await _file(fileName);
-    await f.writeAsString(const JsonEncoder.withIndent('  ').convert(json));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _getKey(fileName),
+      const JsonEncoder.withIndent('  ').convert(json),
+    );
   }
 
   static Future<void> writeList(String fileName, List<dynamic> jsonList) async {
-    final f = await _file(fileName);
-    await f.writeAsString(const JsonEncoder.withIndent('  ').convert(jsonList));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _getKey(fileName),
+      const JsonEncoder.withIndent('  ').convert(jsonList),
+    );
   }
 }

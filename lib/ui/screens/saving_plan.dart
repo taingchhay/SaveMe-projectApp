@@ -1,3 +1,5 @@
+import 'package:saveme_project/ui/widgets/button.dart';
+import 'package:saveme_project/ui/screens/saving_plan_list.dart';
 import 'package:flutter/material.dart';
 import 'package:saveme_project/data/daily_record_data.dart';
 import 'package:saveme_project/domain/model/daily_record.dart';
@@ -389,6 +391,22 @@ class _SavingPlanState extends State<SavingPlan> {
                         const SizedBox(width: 20),
                         _buildCalendarLegend(Colors.red[600]!, 'Missed'),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+                    CustomButton(
+                      text: 'Back to Plan List',
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SavingPlanList(
+                              monthlyIncome: widget.monthlyIncome,
+                              totalFixedExpenses: widget.totalFixedExpenses,
+                            ),
+                          ),
+                          (route) => route.isFirst,
+                        );
+                      },
                     ),
                     const SizedBox(height: 40),
                   ],

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saveme_project/ui/widgets/button.dart';
 import 'package:saveme_project/ui/screens/saving_plan_list.dart';
-import 'tracking_mode.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -96,26 +95,16 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 50),
                   CustomButton(
-                    text: 'Smart Tracking',
-                    backgroundColor: Colors.teal,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TrackingMode(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  CustomButton(
                     text: 'My Plans',
                     backgroundColor:Colors.teal,
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SavingPlanList(),
+                          builder: (context) => SavingPlanList(
+                            monthlyIncome: 1000, // <-- provide a value here
+                            totalFixedExpenses: 500, // <-- provide a value here
+                          ),
                         ),
                       );
                     },

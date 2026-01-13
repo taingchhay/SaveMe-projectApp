@@ -491,10 +491,10 @@ class _TrackingModeState extends State<TrackingMode> {
     );
   }
 }
-
 class _ExpenseRowControllers {
   final TextEditingController name = TextEditingController();
   final TextEditingController amount = TextEditingController();
+
   void dispose() {
     name.dispose();
     amount.dispose();

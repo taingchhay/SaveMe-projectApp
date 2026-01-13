@@ -1,33 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:saveme_project/data/daily_record_data.dart';
-import 'package:saveme_project/data/plan_history_data.dart';
-import 'package:saveme_project/data/saving_goal_data.dart';
-import 'package:saveme_project/domain/logic/date_generator.dart';
-import 'package:saveme_project/domain/logic/saving_calculator.dart';
-import 'package:saveme_project/domain/model/saving_goal.dart';
-import 'package:saveme_project/domain/model/user_finance.dart';
 import 'package:saveme_project/ui/screens/saving_plan.dart';
 import 'package:saveme_project/ui/screens/tracking_mode.dart';
 import 'package:saveme_project/ui/widgets/custom_header.dart';
 import 'package:saveme_project/utils/colors.dart';
 
-typedef SavingPlanCard = ({
-  String id,
-  String goalName,
-  double goalPrice,
-  double monthlyIncome,
-  double totalFixedExpenses,
-  DateTime startDate,
-  DateTime targetDate,
-  int totalPlannedDays,
-  double totalSaved,
-  double targetDailySaving,
-  int daysSaved,
-});
+// Model class for a Saving Plan
+class SavingPlanModel {
+  final String id;
+  final String goalName;
+  final double goalPrice;
+  final double monthlyIncome;
+  final double totalFixedExpenses;
+  final DateTime startDate;
+  final DateTime targetDate;
+  final int daysSaved;
+
+  SavingPlanModel({
+    required this.id,
+    required this.goalName,
+    required this.goalPrice,
+    required this.monthlyIncome,
+    required this.totalFixedExpenses,
+    required this.startDate,
+    required this.targetDate,
+    this.daysSaved = 0,
+  });
+
+  int get totalDays => targetDate.difference(startDate).inDays;
+  double get progressPercent =>
+      totalDays > 0 ? (daysSaved / totalDays) * 100 : 0;
+}
 
 class SavingPlanList extends StatefulWidget {
+  final double monthlyIncome;
+  final double totalFixedExpenses;
+
   const SavingPlanList({
     super.key,
+    required this.monthlyIncome,
+    required this.totalFixedExpenses,
   });
 
   @override
@@ -35,114 +46,45 @@ class SavingPlanList extends StatefulWidget {
 }
 
 class _SavingPlanListState extends State<SavingPlanList> {
-  List<SavingPlanCard> savingPlans = [];
-  String? _currentPlanId;
+  // Sample list of saving plans - In a real app, this would come from a database
+  List<SavingPlanModel> savingPlans = [];
 
   @override
   void initState() {
     super.initState();
-    _loadPlans();
+    // Sample data - Replace with actual data from your storage
+    savingPlans = [
+      SavingPlanModel(
+        id: '1',
+        goalName: 'Laptop',
+        goalPrice: 200.00,
+        monthlyIncome: 1000,
+        totalFixedExpenses: 500,
+        startDate: DateTime.now(),
+        targetDate: DateTime.now().add(const Duration(days: 31)),
+        daysSaved: 1,
+      ),
+      SavingPlanModel(
+        id: '2',
+        goalName: 'Laptop',
+        goalPrice: 300.00,
+        monthlyIncome: 1000,
+        totalFixedExpenses: 500,
+        startDate: DateTime.now(),
+        targetDate: DateTime.now().add(const Duration(days: 31)),
+        daysSaved: 1,
+      ),
+    ];
   }
 
-  Future<void> _loadPlans() async {
-    final currentGoal = await SavingGoalData().loadGoal();
-    final currentFinance = await SavingGoalData().loadFinance();
-    final totalDays = await SavingGoalData().loadTotalPlannedDays();
-    final records = await DailyRecordData().loadAll();
-    final currentSavedDays = records.where((r) => r.isSaved).length;
-    final currentTotalSaved = records
-        .where((r) => r.isSaved)
-        .fold<double>(0.0, (s, r) => s + r.savedAmountThisDay);
-
-    final history = await PlanHistoryData().loadAll();
-
-    final items = <SavingPlanCard>[];
-    if (currentGoal != null && currentFinance != null && totalDays != null) {
-      final start = DateGenerator.dateOnly(currentGoal.startDate);
-      final end = start.add(Duration(days: totalDays - 1));
-      items.add(
-        _fromDomain(
-          goal: currentGoal,
-          finance: currentFinance,
-          startDate: start,
-          targetDate: end,
-          totalPlannedDays: totalDays,
-          totalSaved: currentTotalSaved,
-          targetDailySaving: currentGoal.targetDailySaving ?? 0.0,
-          daysSaved: currentSavedDays,
-        ),
-      );
-      _currentPlanId = currentGoal.id;
-    } else {
-      _currentPlanId = null;
-    }
-
-    for (final h in history) {
-      items.add(
-        _fromDomain(
-          goal: h.goal,
-          finance: h.finance,
-          startDate: h.goal.startDate,
-          targetDate: h.endDate,
-          totalPlannedDays: h.totalPlannedDays,
-          totalSaved: h.totalSaved,
-          targetDailySaving: h.goal.targetDailySaving ?? 0.0,
-          daysSaved: h.savedDays,
-        ),
-      );
-    }
-
-    if (!mounted) return;
+  void _deletePlan(String id) {
     setState(() {
-      savingPlans = items;
+      savingPlans.removeWhere((plan) => plan.id == id);
     });
   }
 
-  SavingPlanCard _fromDomain({
-    required SavingGoal goal,
-    required UserFinance finance,
-    required DateTime startDate,
-    required DateTime targetDate,
-    required int totalPlannedDays,
-    required double totalSaved,
-    required double targetDailySaving,
-    required int daysSaved,
-  }) {
-    return (
-      id: goal.id,
-      goalName: goal.goalName,
-      goalPrice: goal.goalPrice,
-      monthlyIncome: finance.monthlyIncome,
-      totalFixedExpenses: finance.totalFixedExpenses,
-      startDate: startDate,
-      targetDate: targetDate,
-      totalPlannedDays: totalPlannedDays,
-      totalSaved: totalSaved,
-      targetDailySaving: targetDailySaving,
-      daysSaved: daysSaved,
-    );
-  }
-
-  Future<void> _deletePlan(String id) async {
-    if (_currentPlanId != null && id == _currentPlanId) {
-      await SavingGoalData().clear();
-      await DailyRecordData().clear();
-      _currentPlanId = null;
-    } else {
-      await PlanHistoryData().deleteById(id);
-    }
-    await _loadPlans();
-  }
-
-  DateTime _getEndDate(SavingPlanCard plan) {
-    final totalDays = _totalDays(plan);
-    return DateGenerator.dateOnly(plan.startDate)
-        .add(Duration(days: totalDays - 1));
-  }
-
-  Future<void> _navigateToDetail(SavingPlanCard plan) async {
-    final effectiveTarget = _getEndDate(plan);
-    await Navigator.push(
+  void _navigateToDetail(SavingPlanModel plan) {
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SavingPlan(
@@ -151,20 +93,19 @@ class _SavingPlanListState extends State<SavingPlanList> {
           monthlyIncome: plan.monthlyIncome,
           totalFixedExpenses: plan.totalFixedExpenses,
           startDate: plan.startDate,
-          targetDate: effectiveTarget,
+          targetDate: plan.targetDate,
         ),
       ),
     );
-
-    await _loadPlans();
   }
 
-  Future<void> _addNewPlan() async {
-    await Navigator.push(
+  void _addNewPlan() {
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TrackingMode()),
+      MaterialPageRoute(
+        builder: (context) => const TrackingMode(),
+      ),
     );
-    await _loadPlans();
   }
 
   String _formatDate(DateTime date) {
@@ -229,7 +170,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
           Icon(
             Icons.savings_outlined,
             size: 80,
-            color: AppColors.textGrey.withAlpha(128),
+            color: AppColors.textGrey.withOpacity(0.5),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -250,68 +191,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
     );
   }
 
-  int _totalDays(SavingPlanCard plan) {
-    final plannedDays = plan.totalPlannedDays < 1 ? 1 : plan.totalPlannedDays;
-    if (plan.targetDailySaving <= 0) {
-      return plannedDays;
-    }
-
-    final remainingGoal =
-        (plan.goalPrice - plan.totalSaved).clamp(0.0, plan.goalPrice);
-    final remainingDays = SavingCalculator.daysToReachGoal(
-      goalPrice: remainingGoal,
-      suggestedSavingPerDay: plan.targetDailySaving,
-    );
-
-    final recomputedTotalDays = (plan.daysSaved + remainingDays).clamp(1, 3650);
-    final effectiveDays =
-        recomputedTotalDays < plannedDays ? recomputedTotalDays : plannedDays;
-    return effectiveDays < plan.daysSaved ? plan.daysSaved : effectiveDays;
-  }
-
-  double _progressPercent(SavingPlanCard plan) {
-    if (plan.goalPrice <= 0) {
-      return 0.0;
-    }
-    return ((plan.totalSaved / plan.goalPrice) * 100).clamp(0.0, 100.0);
-  }
-
-  int? _calculateRemainingDays(SavingPlanCard plan) {
-    if (plan.totalSaved >= plan.goalPrice) {
-      return 0;
-    }
-
-    final remainingAmount = plan.goalPrice - plan.totalSaved;
-
-    if (plan.daysSaved <= 0 || plan.totalSaved <= 0) {
-      if (plan.targetDailySaving > 0) {
-        return (remainingAmount / plan.targetDailySaving).ceil();
-      }
-      return null;
-    }
-
-    final actualDailySaving = plan.totalSaved / plan.daysSaved;
-
-    return (remainingAmount / actualDailySaving).ceil();
-  }
-
-  String _getRemainingDaysText(SavingPlanCard plan) {
-    final remainingDays = _calculateRemainingDays(plan);
-
-    if (remainingDays == null) {
-      return 'Start saving to see remaining days';
-    } else if (remainingDays == 0) {
-      return 'Goal achieved!';
-    } else if (remainingDays == 1) {
-      return '1 day remaining at current rate';
-    } else {
-      return '$remainingDays days remaining at current rate';
-    }
-  }
-
-  Widget _buildPlanCard(SavingPlanCard plan) {
-    final progressPercent = _progressPercent(plan);
-    final effectiveTarget = _getEndDate(plan);
+  Widget _buildPlanCard(SavingPlanModel plan) {
     return GestureDetector(
       onTap: () => _navigateToDetail(plan),
       child: Container(
@@ -322,7 +202,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(13),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -331,6 +211,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -363,62 +244,58 @@ class _SavingPlanListState extends State<SavingPlanList> {
                 ),
               ],
             ),
+
             const SizedBox(height: 16),
+
+            // Date Range
             Row(
               children: [
                 const Icon(Icons.calendar_today,
                     size: 16, color: AppColors.textGrey),
                 const SizedBox(width: 8),
                 Text(
-                  '${_formatDate(plan.startDate)} - ${_formatDate(effectiveTarget)}',
+                  '${_formatDate(plan.startDate)} - ${_formatDate(plan.targetDate)}',
                   style:
                       const TextStyle(color: AppColors.textGrey, fontSize: 14),
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
+
+            // Days Saved
             Row(
               children: [
-                const Icon(Icons.timelapse,
-                    size: 16, color: AppColors.primaryBlue),
-                const SizedBox(width: 8),
-                Text(
-                  _getRemainingDaysText(plan),
-                  style: TextStyle(
-                    color: AppColors.textGrey,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.savings,
+                const Icon(Icons.check_circle,
                     size: 16, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Text(
-                  '\$${plan.totalSaved.toStringAsFixed(2)} of \$${plan.goalPrice.toStringAsFixed(2)} saved',
+                  '${plan.daysSaved} of ${plan.totalDays} days saved',
                   style:
                       const TextStyle(color: AppColors.textGrey, fontSize: 14),
                 ),
               ],
             ),
+
             const SizedBox(height: 16),
+
+            // Progress Bar
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: progressPercent / 100,
+                value: plan.progressPercent / 100,
                 backgroundColor: AppColors.upcoming,
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
                 minHeight: 8,
               ),
             ),
+
             const SizedBox(height: 8),
+
+            // Progress Percentage
             Text(
-              '${progressPercent.toStringAsFixed(1)}% complete',
+              '${plan.progressPercent.toStringAsFixed(1)}% complete',
               style: const TextStyle(
                 color: AppColors.textGrey,
                 fontSize: 12,
@@ -430,7 +307,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
     );
   }
 
-  void _showDeleteConfirmation(SavingPlanCard plan) {
+  void _showDeleteConfirmation(SavingPlanModel plan) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
