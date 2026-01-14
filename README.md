@@ -13,7 +13,7 @@ SaveMe transforms the way you save money by breaking down large financial goals 
 - **Smart Tracking Mode**: Set up personalized saving plans with intelligent calculations
 - **Daily Savings Calendar**: Interactive calendar view to track your daily saving progress
 - **Missed Days Tracking**: Visual indicators for days you missed saving within your plan period
-- **Fixed Expenses Management**: Track and manage recurring monthly expenses
+- **Daily Expenses Management**: Track and manage recurring monthly expenses
 - **Progress Monitoring**: Real-time updates on total saved amount and daily suggestions
 - **Multiple Saving Plans**: Create and manage multiple saving goals simultaneously
 - **Plan History**: View and access archived saving plans
@@ -35,7 +35,6 @@ SaveMe follows clean architecture principles with clear separation of concerns:
 lib/
 ├── data/              # Data layer - JSON storage and data management
 ├── domain/            # Business logic and models
-│   ├── logic/        # Calculation algorithms
 │   └── model/        # Domain entities
 ├── ui/               # Presentation layer
 │   ├── screens/      # App screens
@@ -49,7 +48,6 @@ lib/
 - **Dart** - Programming language
 - **Table Calendar** - Interactive calendar widget
 - **Device Preview** - Testing across different screen sizes
-- **Path Provider** - File system access
 - **Intl** - Internationalization and date formatting
 
 ## 🚀 Getting Started
@@ -114,32 +112,6 @@ flutter run -d ios      # For iOS
 - ✅ iOS
 - ✅ Linux
 - ✅ macOS
-
-## 📂 Project Structure
-
-- **Data Persistence**: JSON-based local storage
-- **State Management**: StatefulWidget with setState
-- **Navigation**: MaterialPageRoute
-- **Form Validation**: Built-in Flutter form validators
-
-## 🔄 App Flow
-
-```
-Welcome Screen → Smart Tracking Mode → Form Input → Plan Creation → 
-Daily Tracking Calendar → Progress Monitoring → Goal Achievement
-```
-
-## 📈 Future Enhancements
-
-- Cloud synchronization
-- Data export/import
-- Advanced statistics and analytics
-- Budget recommendations
-- Notifications and reminders
-
-## 👥 Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
 ## 📄 License
 
