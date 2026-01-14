@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saveme_project/ui/screens/saving_plan.dart';
-import 'package:saveme_project/ui/screens/tracking_mode.dart';
+import 'package:saveme_project/ui/screens/create_saving_plan_screen.dart';
 import 'package:saveme_project/ui/widgets/custom_header.dart';
 import 'package:saveme_project/ui/widgets/confirm_dialog.dart';
 import 'package:saveme_project/utils/colors.dart';
@@ -103,7 +103,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
     final newPlan = await Navigator.push<UserSavingPlan>(
       context,
       MaterialPageRoute(
-        builder: (context) => TrackingMode(plan: _plans),
+        builder: (context) => CreateSavingPlanScreen(plan: _plans),
       ),
     );
 

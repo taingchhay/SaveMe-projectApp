@@ -6,16 +6,16 @@ import '../widgets/custom_header.dart';
 import '../widgets/fixed_expenses_card.dart';
 import '../widgets/form_input_card.dart';
 
-class TrackingMode extends StatefulWidget {
-  const TrackingMode({super.key, required this.plan});
+class CreateSavingPlanScreen extends StatefulWidget {
+  const CreateSavingPlanScreen({super.key, required this.plan});
 
   final List<UserSavingPlan> plan;
 
   @override
-  State<TrackingMode> createState() => _TrackingModeState();
+  State<CreateSavingPlanScreen> createState() => _CreateSavingPlanScreenState();
 }
 
-class _TrackingModeState extends State<TrackingMode> {
+class _CreateSavingPlanScreenState extends State<CreateSavingPlanScreen> {
   final _goalNameController = TextEditingController();
   final _goalPriceController = TextEditingController();
   final _monthlyIncomeController = TextEditingController();
