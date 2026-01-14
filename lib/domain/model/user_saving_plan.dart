@@ -48,7 +48,7 @@ class UserSavingPlan {
   }
 
   double get savedSoFar =>
-      trackingEachDay.fold<double>(0, (sum, day) => sum + day.newSavingAmount);
+      trackingEachDay.fold<double>(0, (sum, day) => sum + day.actualSavingAmount);
 
   bool get isGoalCompleted => savedSoFar >= goalPrice;
 
@@ -118,7 +118,7 @@ class UserSavingPlan {
   }
 
   double get latestDailySavingRate =>
-      trackingEachDay.isNotEmpty ? trackingEachDay.last.newSavingAmount : 0;
+      trackingEachDay.isNotEmpty ? trackingEachDay.last.actualSavingAmount : 0;
 
   double get completionPercentage {
     if (goalPrice <= 0) return 0;
@@ -139,6 +139,26 @@ class UserSavingPlan {
     if (suggestedSavingAmount <= 0) return 0;
 
     return (difference / suggestedSavingAmount).round();
+  }
+
+  int? get dynamicRemainingDays {
+    if (isGoalCompleted) return 0;
+    if (remainingAmount <= 0) return 0;
+    
+    final rate = currentDailySavingRate;
+    if (rate <= 0) return null;
+    
+    final daysNeeded = (remainingAmount / rate).ceil();
+    return daysNeeded.clamp(0, 3650);
+  }
+
+  DateTime? get dynamicGoalDate {
+    final daysNeeded = dynamicRemainingDays;
+    if (daysNeeded == null) return null;
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.add(Duration(days: daysNeeded));
   }
 
   Map<String, dynamic> toJson() {

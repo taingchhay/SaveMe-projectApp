@@ -416,7 +416,7 @@ class _SavingPlanState extends State<SavingPlan> {
                               iconBgColor:
                                   const Color.fromARGB(119, 66, 164, 245),
                               title: 'Days Remaining',
-                              value: '${widget.plan.daysLeftToGoalDate ?? 0}',
+                              value: '${widget.plan.dynamicRemainingDays ?? 0}',
                               valueColor: AppColors.primaryBlue,
                             ),
                           ),
@@ -424,7 +424,6 @@ class _SavingPlanState extends State<SavingPlan> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Calendar
                       SavingCalendar(
                         plan: widget.plan,
                         focusedDay: _focusedDay,

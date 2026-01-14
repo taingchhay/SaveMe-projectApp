@@ -442,18 +442,16 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
     final futureRemaining = currentRemaining - todaySavingAmount;
     final futureRemainingClamped = futureRemaining < 0 ? 0.0 : futureRemaining;
 
-    final totalDaysLeft =
-        widget.plan.daysLeftToGoalDate ?? widget.plan.suggestedDaysToGoal ?? 1;
-    final futureDaysLeft = totalDaysLeft - 1; // Subtract today
-    final futureDaysLeftClamped = futureDaysLeft < 1 ? 1 : futureDaysLeft;
+    final currentSaved = widget.plan.savedSoFar;
+    final futureSaved = currentSaved + todaySavingAmount;
+    final totalDaysWithToday = widget.plan.trackingEachDay.length + 1;
+    final newAverageSavingRate = totalDaysWithToday > 0
+        ? futureSaved / totalDaysWithToday
+        : todaySavingAmount;
 
-    final futureDynamicRate = futureRemainingClamped > 0
-        ? futureRemainingClamped / futureDaysLeftClamped
-        : 0.0;
-
-    final daysNeededAtNewRate = futureDynamicRate > 0
-        ? (futureRemainingClamped / futureDynamicRate).ceil()
-        : (futureRemainingClamped > 0 ? futureDaysLeftClamped : 0);
+    final daysNeededAtNewRate = newAverageSavingRate > 0
+        ? (futureRemainingClamped / newAverageSavingRate).ceil()
+        : 0;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -462,6 +460,7 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'If you save \$${todaySavingAmount.toStringAsFixed(2)} today',
@@ -469,65 +468,82 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF4F46E5)),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          if (futureRemainingClamped > 0 &&
-              futureDynamicRate != todaySavingAmount) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFDEF7EC),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Your new suggested daily saving:',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF047857),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '\$${futureDynamicRate.toStringAsFixed(2)}/day',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF047857),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Remaining: \$${futureRemainingClamped.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF047857),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.calendar_today,
                   color: Color(0xFF4F46E5), size: 20),
               const SizedBox(width: 8),
-              Flexible(
+              Expanded(
                 child: Text(
                   '$daysNeededAtNewRate more ${daysNeededAtNewRate == 1 ? "day" : "days"} to reach your goal',
                   style:
                       const TextStyle(fontSize: 14, color: Color(0xFF4F46E5)),
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
+          if (widget.plan.trackingEachDay.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Builder(
+              builder: (context) {
+                final currentAverage = widget.plan.averageDailySavingRate;
+                final difference = todaySavingAmount - currentAverage;
+                final isAhead = difference > 0;
+
+                if (difference.abs() > 0.01) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isAhead
+                          ? const Color(0xFFDEF7EC)
+                          : const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isAhead ? Icons.trending_up : Icons.trending_down,
+                          size: 16,
+                          color: isAhead
+                              ? const Color(0xFF047857)
+                              : const Color(0xFFDC2626),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            isAhead
+                                ? 'Saving \$${difference.toStringAsFixed(2)} more than average!'
+                                : 'Saving \$${difference.abs().toStringAsFixed(2)} less than average',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isAhead
+                                  ? const Color(0xFF047857)
+                                  : const Color(0xFFDC2626),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
           if (hasEstimatedSpending) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Builder(
               builder: (context) {
                 final budgetRemaining =
@@ -548,6 +564,7 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
                             ? FontWeight.w600
                             : FontWeight.normal,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                     if (budgetRemaining < 0) ...[
                       const SizedBox(height: 4),
@@ -558,6 +575,7 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
                           color: Colors.red,
                           fontStyle: FontStyle.italic,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ],
@@ -621,7 +639,7 @@ class _MarkAsSavedDialogState extends State<MarkAsSavedDialog> {
                 context,
                 TrackingEachDay(
                   date: widget.day,
-                  dailyItem: expenses,
+                  dailyItems: expenses,
                   newSavingAmount: editedSavingAmount,
                   suggestedSavingAmount: widget.plan.suggestedSavingAmount,
                 ),
