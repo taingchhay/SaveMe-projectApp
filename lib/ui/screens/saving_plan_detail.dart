@@ -201,11 +201,9 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate progress every time build is called
     final progressPercent = widget.plan.completionPercentage;
     final isCompleted = widget.plan.isGoalCompleted;
 
-    // Show text for progress based on completion status
     final progressText = isCompleted
         ? '100%'
         : (progressPercent < 1
@@ -218,24 +216,21 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header with goal name and back button
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  // Back button
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withAlpha(51),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, color: Colors.greenAccent),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Goal name and subtitle
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +254,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
                       ],
                     ),
                   ),
-                  // Calendar icon
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withAlpha(51),
@@ -275,7 +269,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
               ),
             ),
 
-            // Progress to Goal Card
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(20),
@@ -327,7 +320,7 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
                   if (isCompleted) ...[
                     const SizedBox(height: 8),
                     const Text(
-                      '✨ No more savings needed!',
+                      'No more savings needed!',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -341,7 +334,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
 
             const SizedBox(height: 20),
 
-            // Info Cards Section
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
@@ -355,7 +347,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      // Row 1: Total Saved & Remaining Amount
                       Row(
                         children: [
                           Expanded(
@@ -386,7 +377,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Row 2: Suggested Daily Saving & Days Remaining
                       Row(
                         children: [
                           Expanded(
@@ -455,7 +445,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Legend
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
