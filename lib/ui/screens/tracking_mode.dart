@@ -96,6 +96,19 @@ class _TrackingModeState extends State<TrackingMode> {
       startDate: DateTime(now.year, now.month, now.day),
     );
 
+    if (plan.suggestedSavingAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to create plan. Your income is insufficient to cover expenses and savings. Please adjust your income or reduce your spending per day.',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     Navigator.pop(context, plan);
   }
 

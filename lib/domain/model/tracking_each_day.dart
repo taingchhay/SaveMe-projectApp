@@ -1,6 +1,5 @@
 class TrackingEachDay {
   final DateTime date;
-  final double? _newSpendingPerDay;
   final double? _newSavingAmount;
   final double? _suggestedSavingAmount;
   List<DailySpending> dailyItems;
@@ -12,14 +11,11 @@ class TrackingEachDay {
     double? suggestedSavingAmount,
     required List<DailySpending> dailyItem,
   })  : _newSavingAmount = newSavingAmount,
-        _newSpendingPerDay = newSpendingPerDay,
         _suggestedSavingAmount = suggestedSavingAmount,
         dailyItems = dailyItem;
 
   double get totalDailySpending =>
       dailyItems.fold<double>(0, (sum, item) => sum + item.amount);
-
-  double get newSpendingPerDay => _newSpendingPerDay ?? totalDailySpending;
 
   double? get newSavingAmountOrNull =>
       _newSavingAmount ?? _suggestedSavingAmount;
@@ -30,7 +26,6 @@ class TrackingEachDay {
     return {
       'date': date.toIso8601String(),
       'newSavingAmount': _newSavingAmount,
-      'newSpendingPerDay': _newSpendingPerDay,
       'suggestedSavingAmount': _suggestedSavingAmount,
       'dailyItems': dailyItems.map((item) => item.toJson()).toList(),
     };
@@ -40,7 +35,6 @@ class TrackingEachDay {
     return TrackingEachDay(
       date: DateTime.parse(json['date'] as String),
       newSavingAmount: json['newSavingAmount'] as double?,
-      newSpendingPerDay: json['newSpendingPerDay'] as double?,
       suggestedSavingAmount: json['suggestedSavingAmount'] as double?,
       dailyItem: (json['dailyItems'] as List)
           .map((item) => DailySpending.fromJson(item))
