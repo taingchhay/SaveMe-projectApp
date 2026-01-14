@@ -2,110 +2,117 @@ import 'package:flutter/material.dart';
 import 'package:saveme_project/ui/screens/saving_plan.dart';
 import 'package:saveme_project/ui/screens/tracking_mode.dart';
 import 'package:saveme_project/ui/widgets/custom_header.dart';
+import 'package:saveme_project/ui/widgets/confirm_dialog.dart';
 import 'package:saveme_project/utils/colors.dart';
-
-// Model class for a Saving Plan
-class SavingPlanModel {
-  final String id;
-  final String goalName;
-  final double goalPrice;
-  final double monthlyIncome;
-  final double totalFixedExpenses;
-  final DateTime startDate;
-  final DateTime targetDate;
-  final int daysSaved;
-
-  SavingPlanModel({
-    required this.id,
-    required this.goalName,
-    required this.goalPrice,
-    required this.monthlyIncome,
-    required this.totalFixedExpenses,
-    required this.startDate,
-    required this.targetDate,
-    this.daysSaved = 0,
-  });
-
-  int get totalDays => targetDate.difference(startDate).inDays;
-  double get progressPercent =>
-      totalDays > 0 ? (daysSaved / totalDays) * 100 : 0;
-}
+import 'package:saveme_project/domain/model/user_saving_plan.dart';
+import 'package:saveme_project/data/saving_plan_repository.dart';
 
 class SavingPlanList extends StatefulWidget {
-  final double monthlyIncome;
-  final double totalFixedExpenses;
-
-  const SavingPlanList({
-    super.key,
-    required this.monthlyIncome,
-    required this.totalFixedExpenses,
-  });
+  const SavingPlanList({super.key});
 
   @override
   State<SavingPlanList> createState() => _SavingPlanListState();
 }
 
 class _SavingPlanListState extends State<SavingPlanList> {
-  // Sample list of saving plans - In a real app, this would come from a database
-  List<SavingPlanModel> savingPlans = [];
+  final List<UserSavingPlan> _plans = [];
+  final SavingPlanRepository _repository = SavingPlanRepository();
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Sample data - Replace with actual data from your storage
-    savingPlans = [
-      SavingPlanModel(
-        id: '1',
-        goalName: 'Laptop',
-        goalPrice: 200.00,
-        monthlyIncome: 1000,
-        totalFixedExpenses: 500,
-        startDate: DateTime.now(),
-        targetDate: DateTime.now().add(const Duration(days: 31)),
-        daysSaved: 1,
-      ),
-      SavingPlanModel(
-        id: '2',
-        goalName: 'Laptop',
-        goalPrice: 300.00,
-        monthlyIncome: 1000,
-        totalFixedExpenses: 500,
-        startDate: DateTime.now(),
-        targetDate: DateTime.now().add(const Duration(days: 31)),
-        daysSaved: 1,
-      ),
-    ];
+    _loadPlans();
   }
 
-  void _deletePlan(String id) {
-    setState(() {
-      savingPlans.removeWhere((plan) => plan.id == id);
-    });
+  Future<void> _loadPlans() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final loadedPlans = await _repository.loadAll();
+      setState(() {
+        _plans.clear();
+        _plans.addAll(loadedPlans);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading plans: $e')),
+        );
+      }
+    }
   }
 
-  void _navigateToDetail(SavingPlanModel plan) {
-    Navigator.push(
+  Future<void> _savePlans() async {
+    try {
+      await _repository.saveAll(_plans);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving plans: $e')),
+        );
+      }
+    }
+  }
+
+  void _deletePlan(int index) async {
+    try {
+      final planName = _plans[index].goalName;
+      await _repository.delete(planName);
+
+      setState(() {
+        _plans.removeAt(index);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted "$planName"')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting plan: $e')),
+        );
+      }
+    }
+  }
+
+  void _navigateToDetail(UserSavingPlan plan) async {
+    final fallbackTargetDate = plan.startDate.add(const Duration(days: 30));
+    final targetDate = plan.suggestedGoalDate ?? fallbackTargetDate;
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SavingPlan(
-          goalName: plan.goalName,
-          goalPrice: plan.goalPrice,
-          monthlyIncome: plan.monthlyIncome,
-          totalFixedExpenses: plan.totalFixedExpenses,
-          startDate: plan.startDate,
-          targetDate: plan.targetDate,
+          plan: plan,
+          targetDate: targetDate,
+          allPlans: _plans,
         ),
       ),
     );
+
+    await _savePlans();
+    setState(() {});
   }
 
-  void _addNewPlan() {
-    Navigator.push(
+  void _addNewPlan() async {
+    final newPlan = await Navigator.push<UserSavingPlan>(
       context,
       MaterialPageRoute(
-        builder: (context) => const TrackingMode(),
+        builder: (context) => TrackingMode(plan: _plans),
       ),
     );
+
+    if (newPlan != null) {
+      setState(() {
+        _plans.add(newPlan);
+      });
+      await _repository.save(newPlan);
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -138,15 +145,17 @@ class _SavingPlanListState extends State<SavingPlanList> {
             onBackPressed: () => Navigator.pop(context),
           ),
           Expanded(
-            child: savingPlans.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: savingPlans.length,
-                    itemBuilder: (context, index) {
-                      return _buildPlanCard(savingPlans[index]);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _plans.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: _plans.length,
+                        itemBuilder: (context, index) {
+                          return _buildPlanCard(_plans[index], index);
+                        },
+                      ),
           ),
         ],
       ),
@@ -170,7 +179,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
           Icon(
             Icons.savings_outlined,
             size: 80,
-            color: AppColors.textGrey.withOpacity(0.5),
+            color: AppColors.textGrey.withAlpha(128), 
           ),
           const SizedBox(height: 16),
           const Text(
@@ -191,7 +200,12 @@ class _SavingPlanListState extends State<SavingPlanList> {
     );
   }
 
-  Widget _buildPlanCard(SavingPlanModel plan) {
+  Widget _buildPlanCard(UserSavingPlan plan, int index) {
+    final fallbackTargetDate = plan.startDate.add(const Duration(days: 30));
+    final targetDate = plan.suggestedGoalDate ?? fallbackTargetDate;
+
+    final progressPercent = plan.completionPercentage;
+
     return GestureDetector(
       onTap: () => _navigateToDetail(plan),
       child: Container(
@@ -202,7 +216,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withAlpha(128),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -211,7 +225,6 @@ class _SavingPlanListState extends State<SavingPlanList> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -239,63 +252,52 @@ class _SavingPlanListState extends State<SavingPlanList> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _showDeleteConfirmation(plan),
+                  icon:
+                      const Icon(Icons.delete_outline, color: AppColors.missed),
+                  onPressed: () => _showDeleteConfirmation(plan, index),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            // Date Range
             Row(
               children: [
                 const Icon(Icons.calendar_today,
                     size: 16, color: AppColors.textGrey),
                 const SizedBox(width: 8),
                 Text(
-                  '${_formatDate(plan.startDate)} - ${_formatDate(plan.targetDate)}',
+                  '${_formatDate(plan.startDate)} - ${_formatDate(targetDate)}',
                   style:
                       const TextStyle(color: AppColors.textGrey, fontSize: 14),
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // Days Saved
             Row(
               children: [
-                const Icon(Icons.check_circle,
+                const Icon(Icons.savings,
                     size: 16, color: AppColors.primaryGreen),
                 const SizedBox(width: 8),
                 Text(
-                  '${plan.daysSaved} of ${plan.totalDays} days saved',
+                  '\$${plan.savedSoFar.toStringAsFixed(2)} of \$${plan.goalPrice.toStringAsFixed(2)} saved',
                   style:
                       const TextStyle(color: AppColors.textGrey, fontSize: 14),
                 ),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            // Progress Bar
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: plan.progressPercent / 100,
+                value: progressPercent / 100,
                 backgroundColor: AppColors.upcoming,
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
                 minHeight: 8,
               ),
             ),
-
             const SizedBox(height: 8),
-
-            // Progress Percentage
             Text(
-              '${plan.progressPercent.toStringAsFixed(1)}% complete',
+              '${progressPercent.toStringAsFixed(1)}% complete',
               style: const TextStyle(
                 color: AppColors.textGrey,
                 fontSize: 12,
@@ -307,31 +309,18 @@ class _SavingPlanListState extends State<SavingPlanList> {
     );
   }
 
-  void _showDeleteConfirmation(SavingPlanModel plan) {
-    showDialog(
+  Future<void> _showDeleteConfirmation(UserSavingPlan plan, int index) async {
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Plan'),
-        content: Text('Are you sure you want to delete "${plan.goalName}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deletePlan(plan.id);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: AppColors.textWhite,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Plan',
+      message: 'Are you sure you want to delete ""?',
+      boldText: plan.goalName,
+      confirmText: 'Delete',
+      confirmColor: AppColors.missed,
     );
+
+    if (confirmed) {
+      _deletePlan(index);
+    }
   }
 }

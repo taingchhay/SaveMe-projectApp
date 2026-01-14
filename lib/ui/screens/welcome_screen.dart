@@ -54,9 +54,12 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.savings,
-                  size: 80, color: const Color.fromARGB(255, 255, 255, 255)),
-                  SizedBox(height: 20),
+                  const Icon(
+                    Icons.savings,
+                    size: 80,
+                    color: Color.fromARGB(255, 255, 255, 255),
+                  ),
+                  const SizedBox(height: 20),
                   const Text(
                     'SaveMe',
                     style: TextStyle(
@@ -95,16 +98,13 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 50),
                   CustomButton(
-                    text: 'My Plans',
-                    backgroundColor:Colors.teal,
+                    text: 'START',
+                    backgroundColor: Colors.teal,
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SavingPlanList(
-                            monthlyIncome: 1000, // <-- provide a value here
-                            totalFixedExpenses: 500, // <-- provide a value here
-                          ),
+                          builder: (context) => const SavingPlanList(),
                         ),
                       );
                     },

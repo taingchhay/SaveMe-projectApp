@@ -1,31 +1,21 @@
-import 'package:saveme_project/ui/widgets/button.dart';
-import 'package:saveme_project/ui/screens/saving_plan_list.dart';
 import 'package:flutter/material.dart';
-import 'package:saveme_project/data/daily_record_data.dart';
-import 'package:saveme_project/domain/model/daily_record.dart';
-import 'package:saveme_project/ui/widgets/saving_info_card.dart';
 import 'package:saveme_project/ui/widgets/mark_as_saved_dialog.dart';
-import 'package:saveme_project/ui/widgets/daily_entry_detail_dialog.dart';
 import 'package:saveme_project/utils/colors.dart';
+import 'package:saveme_project/domain/model/user_saving_plan.dart';
+import 'package:saveme_project/domain/model/tracking_each_day.dart';
+import 'package:saveme_project/ui/widgets/saving_calendar.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:saveme_project/ui/widgets/custom_header.dart';
 
 class SavingPlan extends StatefulWidget {
-  final String goalName;
-  final double goalPrice;
-  final double monthlyIncome;
-  final double totalFixedExpenses;
-  final DateTime startDate;
-  final DateTime targetDate;
+  final UserSavingPlan plan;
+  final DateTime? targetDate;
+  final List<UserSavingPlan>? allPlans;
 
   const SavingPlan({
     super.key,
-    required this.goalName,
-    required this.goalPrice,
-    required this.monthlyIncome,
-    required this.totalFixedExpenses,
-    required this.startDate,
-    required this.targetDate,
+    required this.plan,
+    this.targetDate,
+    this.allPlans,
   });
 
   @override
@@ -35,383 +25,526 @@ class SavingPlan extends StatefulWidget {
 class _SavingPlanState extends State<SavingPlan> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  late int targetDays;
 
-  final DailyRecordData _dailyRecordData = DailyRecordData();
-
-  Map<DateTime, double> savedAmounts = {};
-  Map<DateTime, bool> missedDays = {};
-  late double suggestedDailySaving;
-  double get totalSaved =>
-      savedAmounts.values.fold(0.0, (sum, amount) => sum + amount);
-
-  int get missedCount {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(
-        widget.startDate.year, widget.startDate.month, widget.startDate.day);
-    final end = DateTime(
-        widget.targetDate.year, widget.targetDate.month, widget.targetDate.day);
-    final endDate = today.isBefore(end) ? today : end;
-
-    int count = 0;
-    DateTime current = start;
-
-    while (current.isBefore(endDate)) {
-      if (!savedAmounts.containsKey(current)) {
-        count++;
-      }
-      current = current.add(const Duration(days: 1));
-    }
-
-    return count;
-  }
+  late DateTime _startDate;
+  late DateTime _targetDate;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
 
-    targetDays = widget.targetDate.difference(widget.startDate).inDays + 1;
-    if (targetDays <= 0) targetDays = 30;
-
-    _calculateDailySaving();
-    _loadExistingRecords();
-  }
-
-  Future<void> _loadExistingRecords() async {
-    final records = await _dailyRecordData.loadAll();
-    final map = <DateTime, double>{};
-    final missed = <DateTime, bool>{};
-    final now = DateTime.now();
-    final todayOnly = DateTime(now.year, now.month, now.day);
-
-    for (final r in records) {
-      final dateOnly = DateTime(r.date.year, r.date.month, r.date.day);
-      if (r.isSaved) {
-        map[dateOnly] = r.savedAmountThisDay;
-      }
-      if (r.isMissed) {
-        missed[dateOnly] = true;
-      }
-    }
-
-    final start = DateTime(
-        widget.startDate.year, widget.startDate.month, widget.startDate.day);
-    final end = DateTime(
-        widget.targetDate.year, widget.targetDate.month, widget.targetDate.day);
-    final endDate = todayOnly.isBefore(end) ? todayOnly : end;
-
-    DateTime current = start;
-    while (current.isBefore(endDate)) {
-      if (!map.containsKey(current)) {
-        missed[current] = true;
-        await _dailyRecordData.upsertByDate(
-          DailyRecord(
-            date: current,
-            spendingItems: [],
-            totalSpending: 0.0,
-            suggestedSaving: suggestedDailySaving,
-            savedAmountThisDay: 0.0,
-            isSaved: false,
-            isMissed: true,
-          ),
-        );
-      }
-      current = current.add(const Duration(days: 1));
-    }
-
-    if (!mounted) return;
-    setState(() {
-      savedAmounts = map;
-      missedDays = missed;
-    });
-  }
-
-  void _calculateDailySaving() {
-    double dailyAvailable =
-        (widget.monthlyIncome - widget.totalFixedExpenses) / 30;
-    double targetDailySaving = widget.goalPrice / targetDays;
-
-    suggestedDailySaving = targetDailySaving < dailyAvailable
-        ? targetDailySaving
-        : dailyAvailable * 0.3;
+    _startDate = DateTime(
+      widget.plan.startDate.year,
+      widget.plan.startDate.month,
+      widget.plan.startDate.day,
+    );
+    _targetDate = widget.targetDate ??
+        widget.plan.suggestedGoalDate ??
+        _startDate.add(const Duration(days: 30));
   }
 
   void _showMarkAsSavedDialog(DateTime day) async {
-    final dateOnly = DateTime(day.year, day.month, day.day);
-
-    if (savedAmounts.containsKey(dateOnly)) {
-      final existing = await _dailyRecordData.loadByDate(dateOnly);
-      if (!mounted || existing == null) {
-        return;
-      }
-
-      await showDialog<void>(
-        context: context,
-        builder: (context) => DailyEntryDetailDialog(
-          record: existing,
-          onEdit: () => _editExistingRecord(existing),
+    // Check if goal is already completed
+    if (widget.plan.isGoalCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Goal already completed! No more savings needed.'),
+          backgroundColor: AppColors.primaryGreen,
+          duration: Duration(seconds: 2),
         ),
       );
       return;
     }
 
-    final result = await showDialog<MarkAsSavedResult>(
+    final dateOnly = DateTime(day.year, day.month, day.day);
+
+    // Check if the date is within the plan range
+    final start = _startDate;
+    final end = DateTime(_targetDate.year, _targetDate.month, _targetDate.day);
+
+    if (dateOnly.isBefore(start) || dateOnly.isAfter(end)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This date is outside your saving plan range'),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Find existing tracking for this date
+    TrackingEachDay? existing;
+    try {
+      existing = widget.plan.trackingEachDay.firstWhere(
+        (t) => isSameDay(t.date, dateOnly),
+      );
+    } catch (e) {
+      existing = null;
+    }
+
+    // Show dialog with existing data (if any)
+    final result = await showDialog<TrackingEachDay>(
       context: context,
       builder: (context) => MarkAsSavedDialog(
+        plan: widget.plan,
         day: dateOnly,
-        suggestedSaving: suggestedDailySaving,
+        existingTracking: existing, // Pass existing data for editing
       ),
     );
 
     if (result != null) {
-      final spendingItems = <SpendingItem>[];
-      for (final e in result.expenses) {
-        spendingItems.add(
-          SpendingItem(
-            spendingItemName:
-                e.description.isEmpty ? 'Spending' : e.description,
-            category: 'Other',
-            spendingItemAmount: e.amount,
-          ),
-        );
-      }
-
-      await _dailyRecordData.upsertByDate(
-        DailyRecord(
-          date: dateOnly,
-          spendingItems: spendingItems,
-          totalSpending: result.totalSpent,
-          suggestedSaving: suggestedDailySaving,
-          savedAmountThisDay: result.amountSaved,
-          isSaved: true,
-          isMissed: false,
-        ),
-      );
-
       if (!mounted) return;
+
       setState(() {
+        // Remove old entry if exists
+        widget.plan.trackingEachDay
+            .removeWhere((t) => isSameDay(t.date, dateOnly));
+
+        // Add new/updated entry
+        widget.plan.trackingEachDay.add(result);
+
         _selectedDay = day;
-        savedAmounts[dateOnly] = result.amountSaved;
-        missedDays.remove(dateOnly);
       });
+
+      // Check if goal is now completed
+      if (widget.plan.isGoalCompleted) {
+        _showGoalCompletedDialog();
+      }
     }
   }
 
-  Future<void> _editExistingRecord(DailyRecord existing) async {
-    final initialExpenses = existing.spendingItems
-        .map(
-          (s) => ExpenseEntry(
-            description: s.spendingItemName,
-            amount: s.spendingItemAmount,
-          ),
-        )
-        .toList();
-
-    final result = await showDialog<MarkAsSavedResult>(
+  void _showGoalCompletedDialog() {
+    showDialog(
       context: context,
-      builder: (context) => MarkAsSavedDialog(
-        day: DateTime(
-            existing.date.year, existing.date.month, existing.date.day),
-        suggestedSaving: existing.suggestedSaving,
-        initialExpenses: initialExpenses,
-        initialAmountSaved: existing.savedAmountThisDay,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.celebration, color: AppColors.primaryGreen, size: 32),
+            SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                'Goal Completed!',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Congratulations! You\'ve reached your goal of \$${widget.plan.goalPrice.toStringAsFixed(2)}!',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGreen,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Saved: \$${widget.plan.savedSoFar.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Days taken: ${widget.plan.trackingEachDay.length}',
+                      style: const TextStyle(color: AppColors.primaryGreen),
+                    ),
+                    if (widget.plan.daysAheadOrBehind > 0) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.rocket_launch,
+                              color: AppColors.primaryGreen, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${widget.plan.daysAheadOrBehind} days ahead of schedule!',
+                              style: const TextStyle(
+                                color: AppColors.primaryGreen,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('Awesome!'),
+          ),
+        ],
       ),
     );
-
-    if (result == null) return;
-
-    final updatedSpendingItems = <SpendingItem>[];
-    for (final e in result.expenses) {
-      updatedSpendingItems.add(
-        SpendingItem(
-          spendingItemName: e.description.isEmpty ? 'Spending' : e.description,
-          category: 'Other',
-          spendingItemAmount: e.amount,
-        ),
-      );
-    }
-
-    final updated = existing.copyWith(
-      spendingItems: updatedSpendingItems,
-      totalSpending: result.totalSpent,
-      savedAmountThisDay: result.amountSaved,
-    );
-
-    await _dailyRecordData.upsertByDate(updated);
-    if (!mounted) return;
-    setState(() {
-      final dateOnly =
-          DateTime(updated.date.year, updated.date.month, updated.date.day);
-      savedAmounts[dateOnly] = updated.savedAmountThisDay;
-      _selectedDay = updated.date;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Recalculate progress every time build is called
+    final progressPercent = widget.plan.completionPercentage;
+    final isCompleted = widget.plan.isGoalCompleted;
+
+    // Show text for progress based on completion status
+    final progressText = isCompleted
+        ? '100%'
+        : (progressPercent < 1
+            ? '${progressPercent.toStringAsFixed(2)}%'
+            : '${progressPercent.toStringAsFixed(0)}%');
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          CustomHeader(
-            title: 'Your Saving Plan',
-            subtitle: 'Mark each day you save',
-            onBackPressed: () => Navigator.pop(context),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
+      backgroundColor:
+          isCompleted ? const Color(0xFFE8F5E9) : AppColors.primaryGreen,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with goal name and back button
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  // Back button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(51),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Goal name and subtitle
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: SavingInfoCard(
-                            title: 'Total Saved',
-                            amount: '\$${totalSaved.toStringAsFixed(2)}',
-                            description: 'Keep it up! You\'re doing great',
-                            icon: Icons.savings,
-                            gradientColors: const [
-                              AppColors.lightGreen,
-                              AppColors.darkGreen
-                            ],
-                            shadowColor: AppColors.primaryGreen.withAlpha(77),
+                        Text(
+                          widget.plan.goalName,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SavingInfoCard(
-                            title: 'Suggested Daily',
-                            amount:
-                                '\$${suggestedDailySaving.toStringAsFixed(2)}',
-                            description: 'Spend less than this amount daily',
-                            icon: Icons.trending_down,
-                            gradientColors: const [
-                              AppColors.lightBlue,
-                              AppColors.darkBlue
-                            ],
-                            shadowColor: AppColors.primaryBlue.withAlpha(77),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Track your daily savings',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white70,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.cardBackground,
-                        borderRadius: BorderRadius.circular(16),
+                  ),
+                  // Calendar icon
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(51),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon:
+                          const Icon(Icons.calendar_today, color: Colors.white),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Progress to Goal Card
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? AppColors.primaryGreen
+                    : Colors.white.withAlpha(38),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color:
+                      isCompleted ? Colors.white : Colors.white.withAlpha(77),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isCompleted ? 'Goal Completed!' : 'Progress to Goal',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
-                      //AI Generated
-                      child: TableCalendar(
-                        firstDay: DateTime.utc(2020, 1, 1),
-                        lastDay: DateTime.utc(2030, 12, 31),
+                      Text(
+                        progressText,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: isCompleted ? 1.0 : (progressPercent / 100),
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withAlpha(77),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  if (isCompleted) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '✨ No more savings needed!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Info Cards Section
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // Row 1: Total Saved & Remaining Amount
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.attach_money,
+                              iconColor: AppColors.primaryGreen,
+                              iconBgColor:
+                                  const Color.fromARGB(114, 102, 187, 106),
+                              title: 'Total Saved',
+                              value:
+                                  '\$${widget.plan.savedSoFar.toStringAsFixed(2)}',
+                              valueColor: AppColors.primaryGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.track_changes,
+                              iconColor: const Color(0xFF6B7280),
+                              iconBgColor: const Color(0xFFF3F4F6),
+                              title: 'Remaining Amount',
+                              value:
+                                  '\$${widget.plan.remainingAmount.toStringAsFixed(2)}',
+                              valueColor: const Color(0xFF111827),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Row 2: Suggested Daily Saving & Days Remaining
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.trending_up,
+                              iconColor: AppColors.primaryGreen,
+                              iconBgColor:
+                                  const Color.fromARGB(114, 102, 187, 106),
+                              title: 'Suggested Daily Saving',
+                              value:
+                                  '\$${widget.plan.currentDailySavingRate.toStringAsFixed(2)}',
+                              valueColor: AppColors.primaryGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildInfoCard(
+                              icon: Icons.access_time,
+                              iconColor: AppColors.primaryBlue,
+                              iconBgColor:
+                                  const Color.fromARGB(119, 66, 164, 245),
+                              title: 'Days Remaining',
+                              value: '${widget.plan.daysLeftToGoalDate ?? 0}',
+                              valueColor: AppColors.primaryBlue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Calendar
+                      SavingCalendar(
+                        plan: widget.plan,
                         focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) =>
-                            isSameDay(_selectedDay, day),
+                        selectedDay: _selectedDay,
+                        startDate: _startDate,
+                        targetDate: _targetDate,
                         onDaySelected: (selectedDay, focusedDay) {
-                          _showMarkAsSavedDialog(selectedDay);
+                          final dateOnly = DateTime(selectedDay.year,
+                              selectedDay.month, selectedDay.day);
+                          final start = _startDate;
+                          final end = DateTime(_targetDate.year,
+                              _targetDate.month, _targetDate.day);
+
+                          if (!dateOnly.isBefore(start) &&
+                              !dateOnly.isAfter(end)) {
+                            _showMarkAsSavedDialog(selectedDay);
+                            setState(() {
+                              _focusedDay = focusedDay;
+                            });
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'You can only track dates within your saving plan range'),
+                                duration: Duration(seconds: 2),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        },
+                        onPageChanged: (focusedDay) {
                           setState(() {
                             _focusedDay = focusedDay;
                           });
                         },
-                        onPageChanged: (focusedDay) => _focusedDay = focusedDay,
-                        calendarBuilders: CalendarBuilders(
-                          markerBuilder: (context, date, events) {
-                            final dateOnly =
-                                DateTime(date.year, date.month, date.day);
-
-                            if (savedAmounts.containsKey(dateOnly)) {
-                              return Positioned(
-                                bottom: 1,
-                                left: 0,
-                                right: 0,
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    Icons.check_circle,
-                                    color: Colors.blue,
-                                    size: 16,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final now = DateTime.now();
-                            final today =
-                                DateTime(now.year, now.month, now.day);
-                            final start = DateTime(widget.startDate.year,
-                                widget.startDate.month, widget.startDate.day);
-                            final end = DateTime(widget.targetDate.year,
-                                widget.targetDate.month, widget.targetDate.day);
-                            final effectiveEnd =
-                                today.isBefore(end) ? today : end;
-
-                            final isInRange = !dateOnly.isBefore(start) &&
-                                dateOnly.isBefore(effectiveEnd);
-
-                            if (isInRange &&
-                                !savedAmounts.containsKey(dateOnly)) {
-                              return Positioned(
-                                bottom: 1,
-                                child: Icon(
-                                  Icons.cancel,
-                                  color: Colors.red[600],
-                                  size: 16,
-                                ),
-                              );
-                            }
-                            return null;
-                          },
-                        ),
-                        calendarStyle: CalendarStyle(
-                          todayDecoration: BoxDecoration(
-                            color: Colors.green[300],
-                            shape: BoxShape.circle,
-                          ),
-                          selectedDecoration: BoxDecoration(
-                            color: Colors.green[600],
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        headerStyle: const HeaderStyle(
-                          formatButtonVisible: false,
-                          titleCentered: true,
-                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildCalendarLegend(Colors.blue, 'Saved'),
-                        const SizedBox(width: 20),
-                        _buildCalendarLegend(Colors.red[600]!, 'Missed'),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    CustomButton(
-                      text: 'Back to Plan List',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SavingPlanList(
-                              monthlyIncome: widget.monthlyIncome,
-                              totalFixedExpenses: widget.totalFixedExpenses,
-                            ),
-                          ),
-                          (route) => route.isFirst,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 20),
+
+                      // Legend
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildCalendarLegend(AppColors.primaryGreen, 'Saved'),
+                          const SizedBox(width: 20),
+                          _buildCalendarLegend(Colors.amber, 'Missed'),
+                          const SizedBox(width: 20),
+                          _buildCalendarLegend(
+                              Colors.grey.shade300, 'Upcoming'),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withAlpha(102),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: iconColor, size: 32),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: valueColor,
+              letterSpacing: -0.5,
             ),
           ),
         ],
