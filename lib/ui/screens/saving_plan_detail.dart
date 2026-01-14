@@ -45,7 +45,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
   }
 
   void _showMarkAsSavedDialog(DateTime day) async {
-    // Check if goal is already completed
     if (widget.plan.isGoalCompleted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -59,7 +58,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
 
     final dateOnly = DateTime(day.year, day.month, day.day);
 
-    // Check if the date is within the plan range
     final start = _startDate;
     final end = DateTime(_targetDate.year, _targetDate.month, _targetDate.day);
 
@@ -74,7 +72,6 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
       return;
     }
 
-    // Find existing tracking for this date
     TrackingEachDay? existing;
     try {
       existing = widget.plan.trackingEachDay.firstWhere(
@@ -84,13 +81,12 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
       existing = null;
     }
 
-    // Show dialog with existing data (if any)
     final result = await showDialog<TrackingEachDay>(
       context: context,
       builder: (context) => MarkAsSavedDialog(
         plan: widget.plan,
         day: dateOnly,
-        existingTracking: existing, // Pass existing data for editing
+        existingTracking: existing, 
       ),
     );
 
@@ -98,17 +94,14 @@ class _SavingPlanDetailState extends State<SavingPlanDetail> {
       if (!mounted) return;
 
       setState(() {
-        // Remove old entry if exists
         widget.plan.trackingEachDay
             .removeWhere((t) => isSameDay(t.date, dateOnly));
 
-        // Add new/updated entry
         widget.plan.trackingEachDay.add(result);
 
         _selectedDay = day;
       });
 
-      // Check if goal is now completed
       if (widget.plan.isGoalCompleted) {
         _showGoalCompletedDialog();
       }
