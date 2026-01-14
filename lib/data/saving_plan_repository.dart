@@ -25,7 +25,7 @@ class SavingPlanRepository {
     }
   }
 
-  Future<void> save(UserSavingPlan plan) async {
+  Future<void> upDate(UserSavingPlan plan) async {
     try {
       final plans = await loadAll();
 

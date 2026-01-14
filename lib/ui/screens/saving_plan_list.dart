@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:saveme_project/ui/screens/saving_plan.dart';
+import 'package:saveme_project/ui/screens/saving_plan_detail.dart';
 import 'package:saveme_project/ui/screens/create_saving_plan_screen.dart';
 import 'package:saveme_project/ui/widgets/custom_header.dart';
 import 'package:saveme_project/ui/widgets/confirm_dialog.dart';
@@ -87,7 +87,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SavingPlan(
+        builder: (context) => SavingPlanDetail(
           plan: plan,
           targetDate: targetDate,
           allPlans: _plans,
@@ -111,7 +111,7 @@ class _SavingPlanListState extends State<SavingPlanList> {
       setState(() {
         _plans.add(newPlan);
       });
-      await _repository.save(newPlan);
+      await _repository.upDate(newPlan);
     }
   }
 

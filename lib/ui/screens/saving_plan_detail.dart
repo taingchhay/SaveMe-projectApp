@@ -6,12 +6,12 @@ import 'package:saveme_project/domain/model/tracking_each_day.dart';
 import 'package:saveme_project/ui/widgets/saving_calendar.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-class SavingPlan extends StatefulWidget {
+class SavingPlanDetail extends StatefulWidget {
   final UserSavingPlan plan;
   final DateTime? targetDate;
   final List<UserSavingPlan>? allPlans;
 
-  const SavingPlan({
+  const SavingPlanDetail({
     super.key,
     required this.plan,
     this.targetDate,
@@ -19,10 +19,10 @@ class SavingPlan extends StatefulWidget {
   });
 
   @override
-  State<SavingPlan> createState() => _SavingPlanState();
+  State<SavingPlanDetail> createState() => _SavingPlanDetailState();
 }
 
-class _SavingPlanState extends State<SavingPlan> {
+class _SavingPlanDetailState extends State<SavingPlanDetail> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
